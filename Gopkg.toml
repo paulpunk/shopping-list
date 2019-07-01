@@ -1,0 +1,4 @@
+[metadata.heroku]
+  root-package = "github.com/paulpunk/shopping-list"
+  go-version = "1.10.4"
+  install = [ "./..." ]
