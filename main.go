@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"github.com/ant0ine/go-json-rest/rest"
 )
 
 func determineListenAddress() (string, error) {
@@ -22,9 +23,18 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	http.HandleFunc("/", hello)
+
+	api := rest.NewApi()
+	api.Use(rest.DefaultDevStack...)
+	api.SetApp(rest.AppSimple(func(w rest.ResponseWriter, r *rest.Request) {
+		w.WriteJson(map[string]string{"Body": "Hello World!"})
+	}))
+
 	log.Printf("Listening on %s...\n", addr)
-	if err := http.ListenAndServe(addr, nil); err != nil {
+	if err := http.ListenAndServe(addr, api.MakeHandler()); err != nil {
 		panic(err)
 	}
+
+
+
 }
