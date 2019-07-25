@@ -68,11 +68,19 @@ func create(collection *mongo.Collection, item *Item) {
 }
 
 func update(collection *mongo.Collection, item *Item) {
-	filter := bson.D{{"name", "Ash"}}
+	//TODO: merge data in case of version conflict?
+
+	filter := bson.D{{"id", item.ID}, {"user", item.User}}
 
 	update := bson.D{
 		{"$inc", bson.D{
-			{"age", 1},
+			{"version", 1},
+		}},
+		{"$set", bson.D{
+			{"name", item.Name},
+		}},
+		{"$set", bson.D{
+			{"checked", item.Checked},
 		}},
 	}
 
