@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 
-	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -31,111 +30,36 @@ func init() {
 	fmt.Println("Connected to MongoDB!")
 }
 
-func persist(list *List) {
+func persist(nicelist *Nicelist) {
 
-	collection := Client.Database("heroku_tx1qdrzx").Collection("item")
+	listcollection := Client.Database("heroku_tx1qdrzx").Collection("list")
+	itemcollection := Client.Database("heroku_tx1qdrzx").Collection("item")
 
-	for _, item := range list.Items {
+	for _, list := range nicelist.Lists {
+		if list.State == "create" {
+			createList(listcollection, list)
+		}
+		if list.State == "update" {
+			updateList(listcollection, list)
+		}
+		if list.State == "delete" {
+			deleteList(listcollection, list)
+		}
+	}
+
+	nicelist.Lists = findLists(&nicelist.User)
+
+	for _, item := range nicelist.Items {
 		if item.State == "create" {
-			create(collection, item)
+			createItem(itemcollection, item)
 		}
 		if item.State == "update" {
-			update(collection, item)
+			updateItem(itemcollection, item)
 		}
 		if item.State == "delete" {
-			delete(collection, item)
+			deleteItem(itemcollection, item)
 		}
 	}
 
-}
-
-func create(collection *mongo.Collection, item *Item) {
-
-	insertResult, err := collection.InsertOne(context.TODO(), bson.M{
-		"id":      item.ID,
-		"version": item.Version,
-		"user":    item.User,
-		"name":    item.Name,
-		"checked": item.Checked,
-		"list":    item.List,
-	},
-	)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	fmt.Println("Inserted a single document: ", insertResult.InsertedID)
-}
-
-func update(collection *mongo.Collection, item *Item) {
-	//TODO: merge data in case of version conflict?
-
-	filter := bson.D{{"id", item.ID}, {"user", item.User}}
-
-	update := bson.D{
-		{"$inc", bson.D{
-			{"version", 1},
-		}},
-		{"$set", bson.D{
-			{"name", item.Name},
-		}},
-		{"$set", bson.D{
-			{"checked", item.Checked},
-		}},
-	}
-
-	updateResult, err := collection.UpdateOne(context.TODO(), filter, update)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	fmt.Printf("Matched %v documents and updated %v documents.\n", updateResult.MatchedCount, updateResult.ModifiedCount)
-}
-
-func delete(collection *mongo.Collection, item *Item) {
-
-	filter := bson.D{{"id", item.ID}, {"user", item.User}}
-
-	deleteResult, err := collection.DeleteOne(context.TODO(), filter)
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Printf("Deleted %v documents in the trainers collection\n", deleteResult.DeletedCount)
-}
-
-func find(user *string) []*Item {
-	collection := Client.Database("heroku_tx1qdrzx").Collection("item")
-
-	// Here's an array in which you can store the decoded documents
-	var results []*Item
-
-	// Passing bson.D{{}} as the filter matches all documents in the collection
-	filter := bson.D{{"user", user}}
-	cur, err := collection.Find(context.TODO(), filter)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// Finding multiple documents returns a cursor
-	// Iterating through the cursor allows us to decode documents one at a time
-	for cur.Next(context.TODO()) {
-
-		// create a value into which the single document can be decoded
-		var elem Item
-		err := cur.Decode(&elem)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		results = append(results, &elem)
-	}
-
-	if err := cur.Err(); err != nil {
-		log.Fatal(err)
-	}
-
-	// Close the cursor once finished
-	cur.Close(context.TODO())
-
-	return results
+	nicelist.Items = findItems(&nicelist.User)
 }

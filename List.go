@@ -1,6 +1,10 @@
 package main
 
 type List struct {
-	User  string
-	Items []*Item
+	ID         int
+	Version    int
+	User       string
+	Name       string
+	State      string
+	SharedWith []*SharedUser
 }

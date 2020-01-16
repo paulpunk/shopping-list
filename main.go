@@ -53,22 +53,20 @@ func main() {
 
 func sync(w rest.ResponseWriter, r *rest.Request) {
 
-	list := List{}
-	err := r.DecodeJsonPayload(&list)
+	nicelist := Nicelist{}
+	err := r.DecodeJsonPayload(&nicelist)
 
 	if err != nil {
 		rest.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	if list.User == "" {
+	if nicelist.User == "" {
 		rest.Error(w, "user required", 400)
 		return
 	}
 
-	persist(&list)
+	persist(&nicelist)
 
-	list.Items = find(&list.User)
-
-	w.WriteJson(&list)
+	w.WriteJson(&nicelist)
 }
