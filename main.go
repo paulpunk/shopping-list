@@ -1,15 +1,12 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 
 	"github.com/ant0ine/go-json-rest/rest"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 func determineListenAddress() (string, error) {
@@ -30,45 +27,48 @@ func determineMongoDbAddress() (string, error) {
 func hello(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, "Hello Katy")
 }
+
 func main() {
 	addr, err := determineListenAddress()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	mongoaddr, err := determineMongoDbAddress()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// Set client options
-	clientOptions := options.Client().ApplyURI(mongoaddr)
-
-	// Connect to MongoDB
-	client, err := mongo.Connect(context.TODO(), clientOptions)
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// Check the connection
-	err = client.Ping(context.TODO(), nil)
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	fmt.Println("Connected to MongoDB!")
-
 	api := rest.NewApi()
 	api.Use(rest.DefaultDevStack...)
-	api.SetApp(rest.AppSimple(func(w rest.ResponseWriter, r *rest.Request) {
-		w.WriteJson(map[string]string{"Body": "Hello World!"})
-	}))
+	router, err := rest.MakeRouter(
+		rest.Post("/list", sync),
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+	api.SetApp(router)
 
 	log.Printf("Listening on %s...\n", addr)
 	if err := http.ListenAndServe(addr, api.MakeHandler()); err != nil {
 		panic(err)
 	}
 
+}
+
+func sync(w rest.ResponseWriter, r *rest.Request) {
+
+	list := List{}
+	err := r.DecodeJsonPayload(&list)
+
+	if err != nil {
+		rest.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if list.User == "" {
+		rest.Error(w, "user required", 400)
+		return
+	}
+
+	persist(&list)
+
+	list.Items = find(&list.User)
+
+	w.WriteJson(&list)
 }
